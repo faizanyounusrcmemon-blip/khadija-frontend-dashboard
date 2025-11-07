@@ -13,8 +13,6 @@ export default function SaleEntry() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerList, setCustomerList] = useState([]);
-  const [showCustomerList, setShowCustomerList] = useState(false);
-
   const [barcode, setBarcode] = useState("");
   const [itemCode, setItemCode] = useState("");
   const [itemName, setItemName] = useState("");
@@ -25,9 +23,9 @@ export default function SaleEntry() {
   const [discount, setDiscount] = useState("");
   const [amount, setAmount] = useState(0);
   const [itemList, setItemList] = useState([]);
-  const [showItemList, setShowItemList] = useState(false);
   const [entries, setEntries] = useState([]);
   const [printData, setPrintData] = useState(null);
+  const [reprintInvoice, setReprintInvoice] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -54,7 +52,6 @@ export default function SaleEntry() {
     }
   }, [customerCode]);
 
-  // ✅ Lookup by Item Code or Barcode
   useEffect(() => {
     if (!itemCode && !barcode) return;
     const i =
@@ -104,8 +101,13 @@ export default function SaleEntry() {
     setQty("");
     setDiscount("");
     setAmount(0);
-
     setTimeout(() => document.getElementById("itemCode").focus(), 100);
+  };
+
+  const handleRemove = (index) => {
+    const updated = [...entries];
+    updated.splice(index, 1);
+    setEntries(updated);
   };
 
   const handleSave = async () => {
@@ -149,12 +151,39 @@ export default function SaleEntry() {
     setEntries([]);
   };
 
+  // ✅ Reprint Function
+  const handleReprint = async () => {
+    if (!reprintInvoice) return alert("Enter invoice number to print");
+    const { data, error } = await supabase
+      .from("sales")
+      .select("*")
+      .eq("invoice_no", reprintInvoice);
+
+    if (error || !data?.length) return alert("Invoice not found!");
+    const entries = data.map((d) => ({
+      itemName: d.item_name,
+      qty: d.qty,
+      saleRate: d.sale_rate,
+      amount: d.amount,
+      discount: d.discount,
+    }));
+
+    setPrintData({
+      invoiceNo: reprintInvoice,
+      saleDate: data[0].sale_date,
+      customerName: data[0].customer_name,
+      customerPhone: data[0].customer_phone,
+      entries,
+      total: data[0].total_amount,
+      discount: data[0].discount,
+    });
+  };
+
   const focusStyle = (name) => ({
     border: focusedField === name ? "2px solid blue" : "1px solid #ccc",
     outline: "none",
   });
 
-  // ✅ helper: handle Enter for ItemCode & Barcode (auto clear)
   const handleItemCodeEnter = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -166,7 +195,7 @@ export default function SaleEntry() {
         setDescription(found.description);
         setSaleRate(found.sale_price);
       }
-      setItemCode(""); // ✅ clear field
+      setItemCode("");
       document.getElementById("barcode").focus();
     }
   };
@@ -182,7 +211,7 @@ export default function SaleEntry() {
         setDescription(found.description);
         setSaleRate(found.sale_price);
       }
-      setBarcode(""); // ✅ clear field
+      setBarcode("");
       document.getElementById("itemName").focus();
     }
   };
@@ -191,6 +220,66 @@ export default function SaleEntry() {
     <div style={{ padding: 20, fontFamily: "Arial" }}>
       <h2 style={{ textAlign: "center" }}>Sale Entry</h2>
 
+      {/* 🔹 Invoice + Date + Reprint */}
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          marginBottom: 12,
+          border: "1px solid #ccc",
+          padding: 8,
+          borderRadius: 6,
+        }}
+      >
+        <div>
+          <label>Invoice No</label>
+          <input
+            value={invoiceNo}
+            readOnly
+            style={{
+              border: "1px solid #ccc",
+              padding: 5,
+              marginLeft: 5,
+              background: "#f3f3f3",
+            }}
+          />
+        </div>
+
+        <div>
+          <label>Date</label>
+          <input
+            type="date"
+            value={saleDate}
+            onChange={(e) => setSaleDate(e.target.value)}
+            style={{ border: "1px solid #ccc", padding: 5, marginLeft: 5 }}
+          />
+        </div>
+
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+          <input
+            placeholder="Enter Invoice No to Print"
+            value={reprintInvoice}
+            onChange={(e) => setReprintInvoice(e.target.value)}
+            style={{ border: "1px solid #ccc", padding: 5 }}
+          />
+          <button
+            onClick={handleReprint}
+            style={{
+              background: "#007bff",
+              color: "white",
+              border: "none",
+              padding: "5px 10px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            🖨️ Print
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ Rest of Original Code Unchanged */}
       {/* Customer Info */}
       <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
         <div>
@@ -244,7 +333,16 @@ export default function SaleEntry() {
       </div>
 
       {/* Item Entry */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, border: "1px solid #ddd", padding: 10, borderRadius: 6 }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 10,
+          border: "1px solid #ddd",
+          padding: 10,
+          borderRadius: 6,
+        }}
+      >
         <div>
           <label>Item Code</label>
           <input
@@ -366,6 +464,7 @@ export default function SaleEntry() {
         </div>
       </div>
 
+      {/* Items Table with Remove button */}
       <table border="1" width="100%" style={{ marginTop: 10, borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ background: "#f1f1f1" }}>
@@ -375,6 +474,7 @@ export default function SaleEntry() {
             <th>Qty</th>
             <th>Disc%</th>
             <th>Amount</th>
+            <th>❌</th>
           </tr>
         </thead>
         <tbody>
@@ -386,6 +486,20 @@ export default function SaleEntry() {
               <td>{e.qty}</td>
               <td>{e.discount}</td>
               <td>{e.amount.toFixed(2)}</td>
+              <td>
+                <button
+                  onClick={() => handleRemove(i)}
+                  style={{
+                    background: "red",
+                    color: "#fff",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "2px 6px",
+                  }}
+                >
+                  ✖
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

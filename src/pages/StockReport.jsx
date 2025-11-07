@@ -40,18 +40,23 @@ export default function StockReport({ onNavigate }) {
         map.set(code, item);
       });
 
-      const { data: sales } = await supabase
+      // ✅ صرف وہی sales لا رہے ہیں جن کا deleted = false ہے
+      const { data: sales, error: salesErr } = await supabase
         .from("sales")
-        .select("item_code, qty");
+        .select("item_code, qty, is_deleted")
+        .eq("is_deleted", false); // 🔥 یہی اصل لائن ہے
+
+      if (salesErr) throw salesErr;
 
       sales?.forEach(r => {
         const code = String(r.item_code || "");
         const qty = Number(r.qty || 0);
         if (!code) return;
 
-        if (map.has(code)) {
-          map.get(code).sold_qty += qty;
-        }
+        const item = map.get(code);
+        if (!item) return;
+
+        item.sold_qty += qty;
       });
 
       const final = [];

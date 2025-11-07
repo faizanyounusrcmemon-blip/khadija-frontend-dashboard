@@ -68,33 +68,94 @@ export default function SaleDetail({ onNavigate }) {
 
     if (!invoiceItems.length) return alert("Invoice not found!");
 
+    const total = invoiceItems.reduce((sum, i) => sum + Number(i.amount || 0), 0);
+
     const printWindow = window.open("", "PRINT", "height=600,width=400");
     printWindow.document.write(`
       <html>
-        <head><title>Invoice ${invoiceNo}</title></head>
-        <body style="font-family: monospace; font-size:12px;">
-          <h3 style="text-align:center;">🧾 SALE INVOICE</h3>
-          <p><b>Invoice No:</b> ${invoiceNo}<br>
-          <b>Date:</b> ${invoiceItems[0].sale_date}<br>
-          <b>Customer:</b> ${invoiceItems[0].customer_name}</p>
+        <head>
+          <title>Invoice ${invoiceNo}</title>
+          <style>
+            body {
+              font-family: 'Courier New', monospace;
+              font-size: 11px;
+              width: 80mm;
+              margin: 0;
+              padding: 4px;
+            }
+            h2 {
+              text-align: center;
+              margin: 0;
+              font-size: 13px;
+            }
+            .center { text-align: center; }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 4px;
+            }
+            th, td {
+              text-align: left;
+              padding: 2px 0;
+              font-size: 11px;
+            }
+            th {
+              border-bottom: 1px dashed #000;
+            }
+            hr {
+              border: none;
+              border-top: 1px dashed #000;
+              margin: 4px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            <h2>💎 Khadija Jewelry 💎</h2>
+            <div>Central Plaza Ground Floor</div>
+            <div>Contact: Fahim Younus - 03212404509</div>
+          </div>
           <hr>
-          <table style="width:100%">
-            ${invoiceItems
-              .map(
-                (i) =>
-                  `<tr><td>${i.item_name}</td><td>${i.qty}</td><td>${i.sale_rate}</td><td>${i.amount}</td></tr>`
-              )
-              .join("")}
+          <div>
+            <b>Invoice No:</b> ${invoiceNo}<br>
+            <b>Date:</b> ${invoiceItems[0].sale_date}<br>
+            <b>Customer:</b> ${invoiceItems[0].customer_name || "CASH SALE"}<br>
+            <b>Phone:</b> ${invoiceItems[0].customer_phone || "-"}
+          </div>
+          <hr>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:40%">Item</th>
+                <th style="width:15%;text-align:right;">Qty</th>
+                <th style="width:15%;text-align:right;">Rate</th>
+                <th style="width:15%;text-align:right;">Disc%</th>
+                <th style="width:15%;text-align:right;">Amt</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${invoiceItems
+                .map(
+                  (i) => `
+                  <tr>
+                    <td>${i.item_name}</td>
+                    <td style="text-align:right;">${i.qty}</td>
+                    <td style="text-align:right;">${Number(i.sale_rate).toFixed(2)}</td>
+                    <td style="text-align:right;">${i.discount || 0}</td>
+                    <td style="text-align:right;">${Number(i.amount).toFixed(2)}</td>
+                  </tr>
+                `
+                )
+                .join("")}
+            </tbody>
           </table>
           <hr>
-          <p><b>Total:</b> ${invoiceItems.reduce(
-            (sum, i) => sum + Number(i.amount || 0),
-            0
-          )}</p>
-          <p style="text-align:center;">--- Thank You ---</p>
+          <p style="text-align:right;"><b>Total: Rs. ${total.toFixed(2)}</b></p>
+          <div class="center">Thank you for shopping with us!</div>
         </body>
       </html>
     `);
+    printWindow.document.close();
     printWindow.print();
   };
 

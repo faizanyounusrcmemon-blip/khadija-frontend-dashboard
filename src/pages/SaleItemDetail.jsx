@@ -1,205 +1,232 @@
-// src/pages/SaleItemDetail.jsx
-import React, { useEffect, useState } from 'react'
-import supabase from '../utils/supabaseClient'
+import React, { useEffect, useState } from "react";
+import supabase from "../utils/supabaseClient";
 
 export default function SaleItemDetail({ onNavigate }) {
-  const [fromDate, setFromDate] = useState('')
-  const [toDate, setToDate] = useState('')
-  const [customerList, setCustomerList] = useState([])
-  const [itemList, setItemList] = useState([])
-  const [selectedCustomer, setSelectedCustomer] = useState('')
-  const [selectedItem, setSelectedItem] = useState('')
-  const [filteredSales, setFilteredSales] = useState([])
-  const [customerDetail, setCustomerDetail] = useState(null)
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [customerList, setCustomerList] = useState([]);
+  const [itemList, setItemList] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedItem, setSelectedItem] = useState("");
+  const [filteredSales, setFilteredSales] = useState([]);
 
-  // ✅ Load customers and items for search dropdowns
+  // Load customers and items
   useEffect(() => {
     const loadLists = async () => {
-      const { data: customers } = await supabase
-        .from('sales')
-        .select('customer_name')
-      const { data: items } = await supabase
-        .from('sales')
-        .select('item_name')
+      const { data: customers } = await supabase.from("sales").select("customer_name");
+      const { data: items } = await supabase.from("sales").select("item_name");
 
-      const uniqueCustomers = [
-        ...new Set(customers.map((c) => c.customer_name)),
-      ]
-      const uniqueItems = [...new Set(items.map((i) => i.item_name))]
+      const uniqueCustomers = customers ? [...new Set(customers.map((c) => c.customer_name))] : [];
+      const uniqueItems = items ? [...new Set(items.map((i) => i.item_name))] : [];
 
-      setCustomerList(uniqueCustomers)
-      setItemList(uniqueItems)
-    }
-    loadLists()
-  }, [])
+      setCustomerList(uniqueCustomers);
+      setItemList(uniqueItems);
+    };
+    loadLists();
+  }, []);
 
-  // ✅ Filter sales data based on selections
+  // Search handler
   const handleSearch = async () => {
-    let query = supabase.from('sales').select('*')
+    let query = supabase.from("sales").select("*");
 
     if (fromDate && toDate) {
-      query = query.gte('sale_date', fromDate).lte('sale_date', toDate)
+      query = query.gte("sale_date", fromDate).lte("sale_date", toDate);
     }
-
     if (selectedCustomer) {
-      query = query.eq('customer_name', selectedCustomer)
+      query = query.eq("customer_name", selectedCustomer);
     }
-
     if (selectedItem) {
-      query = query.eq('item_name', selectedItem)
+      query = query.eq("item_name", selectedItem);
     }
 
-    const { data, error } = await query
-
+    const { data, error } = await query.order("invoice_no", { ascending: true });
     if (error) {
-      console.error(error)
+      console.error(error);
+      setFilteredSales([]);
     } else {
-      setFilteredSales(data || [])
-      if (data && data.length > 0) {
-        setCustomerDetail(data[0])
-      } else {
-        setCustomerDetail(null)
-      }
+      setFilteredSales(data || []);
     }
-  }
+  };
 
-  const totalAmount = filteredSales.reduce((sum, i) => sum + (i.amount || 0), 0)
-  const discount = customerDetail?.discount || 0
-  const netAmount = totalAmount - discount
+  // Group by invoice_no
+  const grouped = filteredSales.reduce((acc, sale) => {
+    if (!acc[sale.invoice_no]) acc[sale.invoice_no] = { customer: sale, items: [] };
+    acc[sale.invoice_no].items.push(sale);
+    return acc;
+  }, {});
+  const invoices = Object.keys(grouped);
+
+  // Inline styles to ensure borders show regardless of CSS framework
+  const containerStyle = { padding: 16, fontFamily: "Arial, sans-serif" };
+  const blockStyle = { border: "2px solid #999", borderRadius: 6, padding: 12, marginBottom: 20, background: "#fff" };
+  const tableStyle = { width: "100%", borderCollapse: "collapse", border: "1px solid #666" };
+  const thStyle = { padding: 8, border: "1px solid #666", background: "#e6eef8", textAlign: "left", fontWeight: 700 };
+  const tdStyle = { padding: 8, border: "1px solid #666", textAlign: "left" };
+  const moneyTdStyle = { ...tdStyle, textAlign: "right" };
+  const headerStyle = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 };
 
   return (
-    <div className="p-4">
-      {/* Exit Button */}
-      <div className="flex justify-between mb-4">
-        <h2 className="text-lg font-bold">🧾 Sales Detail</h2>
+    <div style={containerStyle}>
+      {/* Header */}
+      <div style={headerStyle}>
+        <h2 style={{ margin: 0 }}>🧾 Sales Item Detail</h2>
         <button
-          onClick={() => onNavigate('sale-detail')}
-          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+          onClick={() => onNavigate && onNavigate("sale-detail")}
+          style={{
+            padding: "6px 10px",
+            background: "#e53e3e",
+            color: "#fff",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+          }}
         >
           🚪 Exit
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        {/* Date From */}
-        <div>
-          <label className="font-semibold">From Date:</label>
-          <input
-            type="date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
+      {/* Filters block */}
+      <div style={{ ...blockStyle, background: "#f9fafb" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 160 }}>
+            <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>From Date:</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 4 }}
+            />
+          </div>
+
+          <div style={{ minWidth: 160 }}>
+            <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>To Date:</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 4 }}
+            />
+          </div>
+
+          <div style={{ minWidth: 220 }}>
+            <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Customer:</label>
+            <input
+              list="customerList"
+              value={selectedCustomer}
+              onChange={(e) => setSelectedCustomer(e.target.value)}
+              placeholder="Search customer..."
+              style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 4 }}
+            />
+            <datalist id="customerList">
+              {customerList.map((c, idx) => (
+                <option key={idx} value={c} />
+              ))}
+            </datalist>
+          </div>
+
+          <div style={{ minWidth: 220 }}>
+            <label style={{ display: "block", fontWeight: 600, marginBottom: 6 }}>Item:</label>
+            <input
+              list="itemList"
+              value={selectedItem}
+              onChange={(e) => setSelectedItem(e.target.value)}
+              placeholder="Search item..."
+              style={{ width: "100%", padding: 8, border: "1px solid #ccc", borderRadius: 4 }}
+            />
+            <datalist id="itemList">
+              {itemList.map((i, idx) => (
+                <option key={idx} value={i} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
-        {/* Date To */}
-        <div>
-          <label className="font-semibold">To Date:</label>
-          <input
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            className="w-full border p-2 rounded"
-          />
-        </div>
-
-        {/* Customer Search */}
-        <div>
-          <label className="font-semibold">Customer:</label>
-          <input
-            list="customerList"
-            value={selectedCustomer}
-            onChange={(e) => setSelectedCustomer(e.target.value)}
-            placeholder="Search customer..."
-            className="w-full border p-2 rounded"
-          />
-          <datalist id="customerList">
-            {customerList.map((c, idx) => (
-              <option key={idx} value={c} />
-            ))}
-          </datalist>
-        </div>
-
-        {/* Item Search */}
-        <div>
-          <label className="font-semibold">Item:</label>
-          <input
-            list="itemList"
-            value={selectedItem}
-            onChange={(e) => setSelectedItem(e.target.value)}
-            placeholder="Search item..."
-            className="w-full border p-2 rounded"
-          />
-          <datalist id="itemList">
-            {itemList.map((i, idx) => (
-              <option key={idx} value={i} />
-            ))}
-          </datalist>
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={handleSearch}
+            style={{
+              padding: "8px 12px",
+              background: "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            🔍 Search
+          </button>
         </div>
       </div>
 
-      <button
-        onClick={handleSearch}
-        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-      >
-        🔍 Search
-      </button>
+      {/* Results */}
+      {invoices.length > 0 ? (
+        invoices.map((inv) => {
+          const data = grouped[inv];
+          const total = data.items.reduce((sum, i) => sum + Number(i.amount || 0), 0);
 
-      {/* Customer Detail */}
-      {customerDetail && (
-        <div className="mb-4 border p-3 rounded bg-gray-50">
-          <h3 className="font-semibold mb-2">📋 Customer Detail</h3>
-          <p><strong>Name:</strong> {customerDetail.customer_name}</p>
-          <p><strong>Phone:</strong> {customerDetail.customer_phone}</p>
-          <p><strong>Address:</strong> {customerDetail.customer_address}</p>
-        </div>
-      )}
+          return (
+            <div key={inv} style={blockStyle}>
+              {/* Customer heading table with border */}
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Invoice No</th>
+                    <th style={thStyle}>Date</th>
+                    <th style={thStyle}>Customer Name</th>
+                    <th style={thStyle}>Phone</th>
+                    <th style={thStyle}>Address</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={tdStyle}>{inv}</td>
+                    <td style={tdStyle}>{data.customer.sale_date}</td>
+                    <td style={tdStyle}>{data.customer.customer_name}</td>
+                    <td style={tdStyle}>{data.customer.customer_phone}</td>
+                    <td style={tdStyle}>{data.customer.customer_address}</td>
+                  </tr>
+                </tbody>
+              </table>
 
-      {/* Sales Table */}
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-gray-200 text-left">
-            <th className="p-2 border">Invoice No</th>
-            <th className="p-2 border">Date</th>
-            <th className="p-2 border">Item</th>
-            <th className="p-2 border">Qty</th>
-            <th className="p-2 border">Rate</th>
-            <th className="p-2 border">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSales.length > 0 ? (
-            filteredSales.map((it) => (
-              <tr key={it.id}>
-                <td className="p-2 border">{it.invoice_no}</td>
-                <td className="p-2 border">{it.sale_date}</td>
-                <td className="p-2 border">{it.item_name}</td>
-                <td className="p-2 border">{it.qty}</td>
-                <td className="p-2 border">{it.sale_rate}</td>
-                <td className="p-2 border">{it.amount}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" className="p-3 text-center text-gray-500">
-                کوئی ریکارڈ نہیں ملا۔
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+              {/* Spacing */}
+              <div style={{ height: 12 }} />
 
-      {/* Totals */}
-      {filteredSales.length > 0 && (
-        <div className="mt-4 font-bold text-right">
-          کل رقم: {totalAmount}
-          <br />
-          رعایت: {discount}
-          <br />
-          نیٹ رقم: {netAmount}
-        </div>
+              {/* Items table with borders */}
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Item Name</th>
+                    <th style={thStyle}>Barcode</th>
+                    <th style={thStyle}>Qty</th>
+                    <th style={thStyle}>Rate</th>
+                    <th style={thStyle}>Discount %</th>
+                    <th style={thStyle}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((it) => (
+                    <tr key={it.id}>
+                      <td style={tdStyle}>{it.item_name}</td>
+                      <td style={tdStyle}>{it.barcode}</td>
+                      <td style={tdStyle}>{it.qty}</td>
+                      <td style={tdStyle}>{it.sale_rate}</td>
+                      <td style={tdStyle}>{it.discount}</td>
+                      <td style={moneyTdStyle}>{Number(it.amount || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {/* Total with top border */}
+              <div style={{ marginTop: 12, borderTop: "1px solid #666", paddingTop: 8, textAlign: "right", fontWeight: 700 }}>
+                Total: Rs {total.toFixed(2)}
+              </div>
+            </div>
+          );
+        })
+      ) : (
+        <p style={{ textAlign: "center", color: "#6b7280" }}>No records found.</p>
       )}
     </div>
-  )
+  );
 }

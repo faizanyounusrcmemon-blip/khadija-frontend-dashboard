@@ -17,6 +17,7 @@ import ManageUsers from "./pages/ManageUsers";
 import StockReport from "./pages/StockReport";
 import BarcodePrint from "./pages/BarcodePrint";
 import Login from "./pages/Login";
+import InvoiceEdit from "./pages/InvoiceEdit";
 
 export default function App() {
   // ✅ ہمیشہ login سے شروع: sessionStorage استعمال
@@ -62,6 +63,8 @@ export default function App() {
       case "customer-profile": return <CustomerProfile onNavigate={setPage} />;
       case "manage-users": return <ManageUsers onNavigate={setPage} />;
       case "stock-report": return <StockReport onNavigate={setPage} />;
+      case "invoice-edit": return <InvoiceEdit onNavigate={setPage} />;
+
       // invoice-edit page placeholder remove kia hai kyun ke file nahi thi:
       default: return <Dashboard onNavigate={setPage} />;
     }
